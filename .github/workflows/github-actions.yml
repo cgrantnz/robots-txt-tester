@@ -6,8 +6,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-      - run: echo $(pwd)
-      - run: cat Cargo.toml
-      - run: cd ..
-      - run: cat Cargo.toml
+      - name: Check out repository code
+        uses: actions/checkout@v3
       - run: cargo build --release

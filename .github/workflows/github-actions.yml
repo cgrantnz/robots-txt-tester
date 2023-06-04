@@ -15,5 +15,4 @@ jobs:
           automatic_release_tag: "latest"
           prerelease: true
           title: "Development Build"
-          files: |
-            /target/release/robots-txt-tester
+          files: ./target/release/*

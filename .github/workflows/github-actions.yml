@@ -3,7 +3,7 @@ run-name: ${{ github.ref }} is building
 on:
   push:
     branches:
-      - "master"
+      - "main"
 
 jobs:
   Build-Linux:

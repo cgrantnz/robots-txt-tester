@@ -68,7 +68,7 @@ fn main() {
 
     println!("Passed tests: {}", test_results.iter().filter(|n| n.result).count());
 
-    let failed_test_count = test_results.iter().filter(|m| m.result).count();
+    let failed_test_count = test_results.iter().filter(|m| !m.result).count();
     println!("Failed tests: {}", failed_test_count);
     println!("Elapsed time {:.2}ms", start.elapsed().as_millis());
 

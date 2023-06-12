@@ -64,11 +64,11 @@ fn main() {
         generate_test_report(&test_results, &test_case_input_file_name);
     }
 
-    println!("Test cases run: {}", test_results.len());
-
-    println!("Passed tests: {}", test_results.iter().filter(|n| n.result).count());
-
-    let failed_test_count = test_results.iter().filter(|m| !m.result).count();
+    let total_test_count = test_results.len();
+    let passed_test_count = test_results.iter().filter(|n| n.result).count();
+    let failed_test_count = total_test_count - passed_test_count;
+    println!("Test cases run: {}", total_test_count);
+    println!("Passed tests: {}", passed_test_count);
     println!("Failed tests: {}", failed_test_count);
     println!("Elapsed time {:.2}ms", start.elapsed().as_millis());
 

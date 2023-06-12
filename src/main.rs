@@ -39,15 +39,15 @@ fn main() {
         },
     };
 
-    let test_results: Vec<TestCaseOutput> = test_cases.into_iter()
+    let test_results: Vec<TestCaseOutput> = test_cases.iter()
         .map(|test| {
             let matcher_result = r.allowed(&test.url);
             // println!("Expected result: {}, result: {}", test.expected_result, matcher_result);
             TestCaseOutput {
                 result: matcher_result == test.expected_result,
                 expected_result: test.expected_result,
-                url: test.url,
-                user_agent: test.user_agent
+                url: &test.url,
+                user_agent: &test.user_agent
             }
         })
         .collect();
@@ -128,9 +128,9 @@ struct TestCaseDefinition {
     expected_result: bool
 }
 
-struct TestCaseOutput {
-    user_agent: String,
-    url: String,
+struct TestCaseOutput<'a> {
+    user_agent: &'a str,
+    url: &'a str,
     expected_result: bool,
     result: bool
 }

@@ -66,9 +66,9 @@ fn main() {
 
     println!("Test cases run: {}", test_results.len());
 
-    println!("Passed tests: {}", test_results.iter().filter(|&n| n.result).count());
+    println!("Passed tests: {}", test_results.iter().filter(|n| n.result).count());
 
-    let failed_test_count = test_results.iter().filter(|&m| m.result).count();
+    let failed_test_count = test_results.iter().filter(|m| m.result).count();
     println!("Failed tests: {}", failed_test_count);
     println!("Elapsed time {:.2}ms", start.elapsed().as_millis());
 
@@ -118,11 +118,7 @@ fn generate_test_report(test_results: &[TestCaseOutput], test_suite_name: &str) 
 }
 
 fn get_test_case_name(result: &TestCaseOutput) -> String {
-    let expected_result_label = match result.expected_result {
-        true => "allowed",
-        false => "denied"
-    };
-
+    let expected_result_label = if result.expected_result { "allowed" } else { "denied" };
     format!("Accessing URL: {} as {} should be {}", result.url, result.user_agent, expected_result_label)
 }
 

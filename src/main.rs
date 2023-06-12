@@ -39,20 +39,18 @@ fn main() {
         },
     };
 
-    let mut test_results: Vec<TestCaseOutput> = Vec::new();
-    for test in test_cases {
-        let matcher_result = r.allowed(&test.url);
-        // println!("Expected result: {}, result: {}", test.expected_result, matcher_result);
-
-        let test_result = TestCaseOutput {
-            result: matcher_result == test.expected_result,
-            expected_result: test.expected_result,
-            url: test.url,
-            user_agent: test.user_agent
-        };
-
-        test_results.push(test_result);
-    }
+    let test_results: Vec<TestCaseOutput> = test_cases.into_iter()
+        .map(|test| {
+            let matcher_result = r.allowed(&test.url);
+            // println!("Expected result: {}, result: {}", test.expected_result, matcher_result);
+            TestCaseOutput {
+                result: matcher_result == test.expected_result,
+                expected_result: test.expected_result,
+                url: test.url,
+                user_agent: test.user_agent
+            }
+        })
+        .collect();
 
     // Generate JUnit XML
     if args.generate_test_report {
@@ -68,9 +66,9 @@ fn main() {
 
     println!("Test cases run: {}", test_results.len());
 
-    println!("Passed tests: {}", test_results.iter().filter(|&n| n.result == true).count());
+    println!("Passed tests: {}", test_results.iter().filter(|&n| n.result).count());
 
-    let failed_test_count = test_results.iter().filter(|&m| m.result == false).count();
+    let failed_test_count = test_results.iter().filter(|&m| m.result).count();
     println!("Failed tests: {}", failed_test_count);
     println!("Elapsed time {:.2}ms", start.elapsed().as_millis());
 
@@ -80,14 +78,14 @@ fn main() {
     }
 }
 
-fn generate_test_report(test_results: &Vec<TestCaseOutput>, test_suite_name: &str) {
+fn generate_test_report(test_results: &[TestCaseOutput], test_suite_name: &str) {
 
     let mut test_cases: Vec<TestCase> = Vec::new();
 
     for result in test_results {
-        let test_case_name = get_test_case_name(&result);
+        let test_case_name = get_test_case_name(result);
 
-        match result.result == true {
+        match result.result {
             true => {
                 let test_success = TestCaseBuilder::success(&test_case_name, Duration::seconds(0))
                 .build();
@@ -120,18 +118,12 @@ fn generate_test_report(test_results: &Vec<TestCaseOutput>, test_suite_name: &st
 }
 
 fn get_test_case_name(result: &TestCaseOutput) -> String {
-    let expected_result_label: String;
+    let expected_result_label = match result.expected_result {
+        true => "allowed",
+        false => "denied"
+    };
 
-    match result.expected_result == true {
-        true => {
-            expected_result_label = "allowed".to_string();
-        }
-        false => {
-            expected_result_label = "denied".to_string();
-        }
-    }
-
-    return format!("Accessing URL: {} as {} should be {}", result.url, result.user_agent, expected_result_label);
+    format!("Accessing URL: {} as {} should be {}", result.url, result.user_agent, expected_result_label)
 }
 
 struct TestCaseDefinition {
@@ -148,7 +140,7 @@ struct TestCaseOutput {
 }
 
 fn get_test_cases(file_path: &str) -> Result<Vec<TestCaseDefinition>, Box<dyn Error>> {
-    let test_case_content = fs::read_to_string(file_path).expect("Unable to test cases file");
+    let test_case_content = fs::read_to_string(file_path)?;
     let mut test_cases: Vec<TestCaseDefinition> = Vec::new();
     let mut rdr = csv::Reader::from_reader(test_case_content.as_bytes());
 

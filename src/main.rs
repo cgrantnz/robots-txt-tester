@@ -6,6 +6,9 @@ use junit_report::{Duration, ReportBuilder, TestCase, TestCaseBuilder, TestSuite
 
 use lenient_bool::LenientBool;
 use texting_robots::Robot;
+use serde::{Serialize, Deserialize};
+use rayon::prelude::*;
+use itertools::Itertools;
 
 /// Simple program to validate robots.txt files against test cases
 #[derive(Parser, Debug)]
@@ -27,9 +30,7 @@ struct Args {
 fn main() { 
     let start = std::time::Instant::now();
     let args = Args::parse();
-    let robots_content = fs::read_to_string(args.robots_text_file_path).expect("Unable to read robots.txt file");
-
-    let r = Robot::new("googlebot", robots_content.as_bytes()).unwrap();
+    let robots_content = fs::read_to_string(&args.robots_text_file_path).expect("Unable to read robots.txt file");
 
     let test_cases = match get_test_cases(&args.test_case_file_path) {
         Ok(test_cases)  => test_cases,
@@ -39,29 +40,52 @@ fn main() {
         },
     };
 
-    let test_results: Vec<TestCaseOutput> = test_cases.iter()
-        .map(|test| {
-            let matcher_result = r.allowed(&test.url);
-            // println!("Expected result: {}, result: {}", test.expected_result, matcher_result);
-            TestCaseOutput {
-                result: matcher_result == test.expected_result,
-                expected_result: test.expected_result,
-                url: &test.url,
-                user_agent: &test.user_agent
-            }
+    // Group test cases by user agent
+    let grouped_test_cases = test_cases.iter()
+        .group_by(|test| &test.user_agent)
+        .into_iter()
+        .map(|(user_agent, group)| (user_agent, group.collect::<Vec<_>>()))
+        .collect::<Vec<_>>();
+
+    // Process each group in parallel
+    let test_results: Vec<TestCaseOutput> = grouped_test_cases.par_iter()
+        .flat_map(|(user_agent, tests)| {
+            // Create a Robot instance once per user agent
+            let robot = Robot::new(user_agent, robots_content.as_bytes()).unwrap();
+            
+            // Process all tests for this user agent
+            tests.iter().map(|test| {
+                let matcher_result = robot.allowed(&test.url);
+                println!("Expected result: {}, result: {}", test.expected_result, matcher_result);
+                TestCaseOutput {
+                    result: matcher_result == test.expected_result,
+                    expected_result: test.expected_result,
+                    url: test.url.clone(),
+                    user_agent: test.user_agent.clone()
+                }
+            }).collect::<Vec<_>>()
         })
         .collect();
 
-    // Generate JUnit XML
+    // Generate reports
+    let test_case_input_file_name = Path::new(&args.test_case_file_path)
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap();
+    
+    // Always generate JSON report
+    let json_file_name = if test_case_input_file_name.ends_with(".csv") || test_case_input_file_name.ends_with(".json") {
+        test_case_input_file_name.rsplit_once('.').unwrap().0
+    } else {
+        test_case_input_file_name
+    };
+    
+    generate_json_report(&test_results, json_file_name);
+    
+    // Generate JUnit XML if requested
     if args.generate_test_report {
-        let test_case_input_file_name = Path::new(&args.test_case_file_path)
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .replace(".csv", "");
-
-        generate_test_report(&test_results, &test_case_input_file_name);
+        generate_test_report(&test_results, json_file_name);
     }
 
     let total_test_count = test_results.len();
@@ -122,34 +146,55 @@ fn get_test_case_name(result: &TestCaseOutput) -> String {
     format!("Accessing URL: {} as {} should be {}", result.url, result.user_agent, expected_result_label)
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 struct TestCaseDefinition {
     user_agent: String,
     url: String,
     expected_result: bool
 }
 
-struct TestCaseOutput<'a> {
-    user_agent: &'a str,
-    url: &'a str,
+#[derive(Serialize, Deserialize, Debug)]
+struct TestCaseOutput {
+    user_agent: String,
+    url: String,
     expected_result: bool,
     result: bool
 }
 
+fn generate_json_report(test_results: &[TestCaseOutput], test_suite_name: &str) {
+    let json_output = serde_json::to_string_pretty(test_results).unwrap();
+    let mut file = File::create(format!("./{}.robots-test-results.json", &test_suite_name)).unwrap();
+    file.write_all(json_output.as_bytes()).unwrap();
+    file.flush().unwrap();
+    file.sync_all().unwrap();
+    
+    println!("JSON report generated: {}.robots-test-results.json", test_suite_name);
+}
+
 fn get_test_cases(file_path: &str) -> Result<Vec<TestCaseDefinition>, Box<dyn Error>> {
     let test_case_content = fs::read_to_string(file_path)?;
-    let mut test_cases: Vec<TestCaseDefinition> = Vec::new();
-    let mut rdr = csv::Reader::from_reader(test_case_content.as_bytes());
+    
+    // Check if the file is JSON or CSV based on extension
+    if file_path.ends_with(".json") {
+        // Parse JSON
+        let test_cases: Vec<TestCaseDefinition> = serde_json::from_str(&test_case_content)?;
+        Ok(test_cases)
+    } else {
+        // Default to CSV parsing
+        let mut test_cases: Vec<TestCaseDefinition> = Vec::new();
+        let mut rdr = csv::Reader::from_reader(test_case_content.as_bytes());
 
-    for result in rdr.records() {
-        let record = result?;
+        for result in rdr.records() {
+            let record = result?;
 
-        let test_case = TestCaseDefinition {
-            user_agent: record[0].to_string(),
-            url: record[1].to_string(),
-            expected_result: record[2].parse::<LenientBool>().unwrap().into(),
-        };
+            let test_case = TestCaseDefinition {
+                user_agent: record[0].to_string(),
+                url: record[1].to_string(),
+                expected_result: record[2].parse::<LenientBool>().unwrap().into(),
+            };
 
-        test_cases.push(test_case);
+            test_cases.push(test_case);
+        }
+        Ok(test_cases)
     }
-    Ok(test_cases)
 }

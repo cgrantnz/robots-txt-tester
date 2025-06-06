@@ -40,14 +40,14 @@ fn main() {
         },
     };
 
-    // Group test cases by user agent
+    // Chunk test cases by user agent
     let grouped_test_cases = test_cases.iter()
-        .group_by(|test| &test.user_agent)
+        .chunk_by(|test| &test.user_agent)
         .into_iter()
         .map(|(user_agent, group)| (user_agent, group.collect::<Vec<_>>()))
         .collect::<Vec<_>>();
 
-    // Process each group in parallel
+    // Process each chunk in parallel
     let test_results: Vec<TestCaseOutput> = grouped_test_cases.par_iter()
         .flat_map(|(user_agent, tests)| {
             // Create a Robot instance once per user agent

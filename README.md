@@ -21,7 +21,7 @@ This Rust-based application allows you to validate whether specific URLs are all
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/robots-txt-tester.git
+   git clone git@github.com:cgrantnz/robots-txt-tester.git
    cd robots-txt-tester
    ```
 

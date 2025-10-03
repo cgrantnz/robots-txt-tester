@@ -78,11 +78,9 @@ Disallow: /a/motors/cars/0*
 ...
 ```
 
-### Test Cases (CSV or JSON)
+### Test Cases (CSV)
 
-Test cases can be provided in either CSV or JSON format:
-
-#### CSV Format
+Test cases should be provided in CSV format:
 
 ```
 user_agent,url,expected_result
@@ -97,24 +95,7 @@ bingbot,https://example.com/a/motors/cars/,false
 ...
 ```
 
-#### JSON Format
-
-```json
-[
-  {
-    "user_agent": "googlebot",
-    "url": "https://example.com/a/motors/cars/listing",
-    "expected_result": true
-  },
-  {
-    "user_agent": "bingbot",
-    "url": "https://example.com/a/motors/cars/",
-    "expected_result": false
-  }
-]
-```
-
-For both formats:
+Where:
 - `user_agent`: The user agent to test (e.g., "googlebot", "bingbot", etc.)
 - `url`: The URL to test against the robots.txt rules
 - `expected_result`: `true` if the URL should be allowed, `false` if it should be disallowed
